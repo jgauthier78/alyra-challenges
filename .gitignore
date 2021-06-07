@@ -1,3 +1,3 @@
 .solhint.json
-voting/node_modules
-voting/package-lock.json
+node_modules
+package-lock.json
