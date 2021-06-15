@@ -41,17 +41,25 @@ Un onglet "Propositions" permettra à l'administrateur de démarrer et stopper l
 (options accessibles par l'administrateur seulement)
 
 ### aux électeurs inscrits d’enregistrer leurs propositions.
-Le même onglet propositions proposera une autre vue pour les utilisateurs non administrateur :
+Le même onglet "propositions" proposera une autre vue pour les utilisateurs non administrateur :
 sur le même principe que la saisie de la liste blanche, les utilisateurs pourront ici saisir une nouvelle proposition ou voir leur proposition enregistrée. A voir = possibilité de lister toutes les propositions déjà effectuées.
 
 ### à l'administrateur de mettre fin à la session d'enregistrement des propositions.
+Voir section précédente de l'admin.
 
 ### à l'administrateur de commencer la session de vote.
+Un onglet "Votes" permettra à l'administrateur de démarrer et stopper la session de votes
+(options accessibles par l'administrateur seulement)
 
 ### aux électeurs inscrits de voter pour leurs propositions préférées.
+Le même onglet "votes" proposera une autre vue pour les utilisateurs non administrateur :
+les utilisateurs pourront ici voter pour une des propositions.
 
 ### à l'administrateur de mettre fin à la session de vote.
+Voir section précédente de l'admin.
 
 ### à l'administrateur de comptabiliser les votes.
+Un onglet "Résultats" permettra à l'administrateur dde comptabiliser les votes.
 
 ### à tout le monde de consulter le résultat.
+Le même onglet "Résultats" permettra aux utilisateurs de voir le résultat des votes.
