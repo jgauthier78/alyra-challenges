@@ -33,8 +33,8 @@ contract Voting is Ownable {
     
     WorkflowStatus currentWorkflowStatus = WorkflowStatus.RegisteringVoters;
     Proposal public winningProposal; // Tout le monde peut vérifier la proposition gagnante
-    Proposal[] public proposals; // we will use votedProposalId as key 
-    address[] public votersAddresses;
+    Proposal[] private proposals; // we will use votedProposalId as key 
+    address[] private votersAddresses;
     mapping(address => Voter) voters;
     uint numberOfVoters;
     

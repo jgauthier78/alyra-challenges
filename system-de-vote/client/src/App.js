@@ -1,8 +1,10 @@
 import React, { Component } from "react";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import getWeb3 from "./getWeb3";
+import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Form from 'react-bootstrap/Form';
+import Jsonify from 'jsonify';
 import ListGroup from 'react-bootstrap/ListGroup';
 import Tab from 'react-bootstrap/Tab';
 import Table from 'react-bootstrap/Table';
@@ -37,28 +39,94 @@ class App extends Component {
       this.setState({ web3, accounts, contract: instance }, this.runInit);
     } catch (error) {
       // Catch any errors for any of the above operations.
-      alert(
-        `Non-Ethereum browser detected. Can you please try to install MetaMask before starting.`,
-      );
+      alert('Non-Ethereum browser detected. Can you please try to install MetaMask before starting.',);
       console.error(error);
     }
   };
+  
+  startProposalsRegistration = async() => {
+    const { accounts, contract } = this.state;
+    try {
+      await contract.methods.startProposalsRegistration().call({from: accounts[0]})
+        .then(function(res){
+          alert('Enregistrement des propositions démarré');
+        }).catch(function(err) {
+          alert('Erreur au démarrage des propositions :\n' + err);
+        });
+    }
+    catch (err) {
+      alert('Une erreur s\'est produite au démarrage des propositions :\n' + Jsonify.stringify(err),);
+    }
+  }
 
+  stopProposalsRegistration = async() => {
+    const { accounts, contract } = this.state;
+    try {
+      await contract.methods.stopProposalsRegistration().call({from: accounts[0]})
+        .then(function(res){
+          alert('Enregistrement des propositions démarré');
+        }).catch(function(err) {
+          alert('Erreur à l\{arrêt des propositions :\n' + err);
+        });
+    }
+    catch (err) {
+      alert('Une erreur s\'est produite à l\{arrêt des propositions :\n' + Jsonify.stringify(err),);
+    }
+  }
+
+  registerProposal = async() => {
+    const { accounts, contract } = this.state;
+    const proposalDescription = this.proposalDescription.value;
+    
+    // Interaction avec le smart contract pour ajouter un compte 
+    try {
+      await contract.methods.registerProposal(proposalDescription).send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors de l\'ajout de la proposition :\n' + err.reason,);
+    }
+  }
+ 
   runInit = async() => {
     const { accounts, contract } = this.state;
     const contractOwner = await contract.methods.owner().call();
     const isOwner = accounts !== null && contractOwner == accounts[0] ? true : false;
-    this.setState({ contractOwner: contractOwner, isOwner: isOwner });
+    
+    let proposals = null;
+    await contract.methods.getProposals().call()
+      .then(function(res){
+        proposals = res;
+      }).catch(function(err) {
+        alert('Erreur lors de la récupération des propositions :\n' + err);
+      });
+    
+    this.setState({ contractOwner: contractOwner, isOwner: isOwner, proposals: proposals });
   }; 
 
   render() {
-    const { contract, accounts, contractOwner, isOwner } = this.state;
+    const { contract, accounts, contractOwner, isOwner, proposals } = this.state;
 
     let divOwner;
     if (isOwner) {
       divOwner = <div>Vous êtes le propriétaire du contrat, en conséquence l'administrateur du vote</div>;
     } else {
       divOwner = <div>Ici nous indiquerons le statut/avancement du vote et si l'utilisateur peut voter</div>;
+    }
+
+    let divOwnerProposals;
+    if (isOwner) {
+      divOwnerProposals = <div>
+                            <br></br>
+                            <div>
+                              <Button onClick={ this.startProposalsRegistration } variant="dark" > Démarrer l'enregistrement des propositions </Button>
+                            </div>
+                            <br></br>
+                            <div>
+                              <Button onClick={ this.stopProposalsRegistration } variant="dark" > Arrêter l'enregistrement des propositions </Button>
+                            </div>
+                            <br></br>
+                          </div>;
+
     }
 
     return (
@@ -82,7 +150,7 @@ class App extends Component {
                 <div>
                   <span>Compte connecté : </span>
                   {accounts !== null && 
-                    accounts.map((accountRecord) => <span>{accountRecord}</span>)
+                    accounts.map((accountRecord) => <span key={accountRecord.toString()}>{accountRecord}</span>)
                   }
                 </div>
                 <br></br>
@@ -104,7 +172,36 @@ class App extends Component {
                 <Card.Header><strong>Explications</strong></Card.Header>
                 <Card.Body>
                   Retrouvez ici les propositions et la possibilité d'en saisir de nouvelles
+                  <br></br>
+                  {divOwnerProposals}                  
                 </Card.Body>
+              </Card>
+            </div>
+            <div style={{display: 'flex', justifyContent: 'center'}}>
+              <Card style={{ width: '50rem' }}>
+                <Card.Header><strong>Ajouter une proposition</strong></Card.Header>
+                <Card.Body>
+                  <Form.Group>
+                    <Form.Control type="text" id="proposalDescription"
+                    ref={(input) => { this.proposalDescription = input }}
+                    />
+                  </Form.Group>
+                  <Button onClick={ this.registerProposal } variant="dark" > Ajouter </Button>
+                </Card.Body>
+                <ListGroup variant="flush">
+                  <ListGroup.Item>
+                    <Table striped bordered hover>
+                      <thead>
+                        <tr>
+                          <th>Liste des propositions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        Display proposals here = same approach as for votersAdresses
+                      </tbody>
+                    </Table>
+                  </ListGroup.Item>
+                </ListGroup>
               </Card>
             </div>
           </Tab>

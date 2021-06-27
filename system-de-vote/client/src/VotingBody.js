@@ -2,13 +2,14 @@ import React, { Component } from "react";
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Form from 'react-bootstrap/Form';
+import Jsonify from 'jsonify';
 import ListGroup from 'react-bootstrap/ListGroup';
 import Table from 'react-bootstrap/Table';
 import VotingContract from "./contracts/Voting.json";
 import getWeb3 from "./getWeb3";
 
 class VotingBody extends Component {
-  state = { web3: null, accounts: null, contract: null, VotersAdresses: null };
+  state = { web3: null, accounts: null, contract: null, votersAdresses: null };
 
   componentWillMount = async () => {
     try {
@@ -39,16 +40,16 @@ class VotingBody extends Component {
     }
   };
 
-  RegisterVoters = async() => {
+  registerVoters = async() => {
     const { accounts, contract } = this.state;
     const address = this.address.value;
     
     // Interaction avec le smart contract pour ajouter un compte 
     try {
-      await contract.methods.registerVoters(address).send({from: accounts[2]});
+      await contract.methods.registerVoters(address).send({from: accounts[0]});
     }
     catch (err) {
-      alert('An error occurred:\n' + err, 'Incorrect Adress?');
+      alert('Une erreur est survenue lors de l\'enregistrement des votants :\n' + err.reason, 'Incorrect Adress?');
     }
 
     // Récupérer la liste des comptes autorisés
@@ -59,23 +60,29 @@ class VotingBody extends Component {
     const { contract } = this.state;
   
     // récupérer la liste des comptes autorisés
-    const VotersAdresses = await contract.methods.getVotersAdresses().call(); // await contract.methods.getAddresses().call();
+    let votersAdresses = null;
+    await contract.methods.getVotersAdresses().call()
+      .then(function(res){
+        votersAdresses = res; // alert('Récupération des votants : ' + Jsonify.stringify(res));
+      }).catch(function(err) {
+        alert('Erreur lors de la récupération des votants :\n' + err);
+      });
 
-    console.log("VotersAdresses: "+VotersAdresses);
+    console.log("votersAdresses: "+votersAdresses);
     
     // Mettre à jour le state 
-    this.setState({ VotersAdresses: VotersAdresses });
+    this.setState({ votersAdresses: votersAdresses });
   }; 
 
   render() {
-    const { VotersAdresses, contract, accounts } = this.state;
+    const { votersAdresses, contract, accounts } = this.state;
 
     if (!this.state.web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
     }
     return (
       <div>
-        <h3 className="text-center">Système d'une liste blanche</h3>
+        <h3 className="text-center">Liste des votants</h3>
         <hr></hr>
         <br></br>
         <div style={{display: 'flex', justifyContent: 'center'}}>
@@ -87,7 +94,7 @@ class VotingBody extends Component {
                 ref={(input) => { this.address = input }}
                 />
               </Form.Group>
-              <Button onClick={ this.RegisterVoters } variant="dark" > Autoriser </Button>
+              <Button onClick={ this.registerVoters } variant="dark" > Autoriser </Button>
             </Card.Body>
             <ListGroup variant="flush">
               <ListGroup.Item>
@@ -98,8 +105,8 @@ class VotingBody extends Component {
                     </tr>
                   </thead>
                   <tbody>
-                    {VotersAdresses !== null && 
-                      VotersAdresses.map((a) => <tr key={a.toString()}><td>{a}</td></tr>)
+                    {votersAdresses !== null && 
+                      votersAdresses.map((a) => <tr key={a.toString()}><td>{a}</td></tr>)
                     }
                   </tbody>
                 </Table>
