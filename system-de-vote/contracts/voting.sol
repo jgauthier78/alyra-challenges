@@ -157,4 +157,8 @@ contract Voting is Ownable {
         emit WorkflowStatusChange(previousWorkflowStatus, newWorkflowStatus);
     }
     
+    /// @notice Renvoit le statut courant du workflow
+    function getCurrentWorkflowStatus() public view returns (WorkflowStatus) {
+        return  currentWorkflowStatus;
+    }
 }

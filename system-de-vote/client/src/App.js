@@ -92,19 +92,30 @@ class App extends Component {
     const contractOwner = await contract.methods.owner().call();
     const isOwner = accounts !== null && contractOwner == accounts[0] ? true : false;
     
+    const currentWorkflowStatus = await contract.methods.getCurrentWorkflowStatus().call();
+    // possible workflow status values
+    // 0: RegisteringVoters
+    // 1: ProposalsRegistrationStarted
+    // 2: ProposalsRegistrationEnded
+    // 3: VotingSessionStarted
+    // 4: VotingSessionEnded
+    // 5: VotesTallied
+    
     let proposals = null;
     await contract.methods.getProposals().call()
       .then(function(res){
-        proposals = res;
+        if (res !== 'undefined' && typeof(res.length) !== 'undefined') {
+          proposals = res;
+        }
       }).catch(function(err) {
         alert('Erreur lors de la récupération des propositions :\n' + err);
       });
     
-    this.setState({ contractOwner: contractOwner, isOwner: isOwner, proposals: proposals });
+    this.setState({ contractOwner, currentWorkflowStatus, isOwner, proposals });
   }; 
 
   render() {
-    const { contract, accounts, contractOwner, isOwner, proposals } = this.state;
+    const { contract, accounts, contractOwner, currentWorkflowStatus, isOwner, proposals } = this.state;
 
     let divOwner;
     if (isOwner) {
@@ -146,7 +157,13 @@ class App extends Component {
                 </Card.Body>
                 <div>
                   <span>Propriétaire du contrat : </span>
-                  <span>{contractOwner}</span></div>
+                  <span>{contractOwner}</span>
+                </div>
+                <br></br>
+                <div>
+                  <span>Statut du workflow en cours : </span>
+                  <span>{currentWorkflowStatus}</span>
+                </div>
                 <div>
                   <span>Compte connecté : </span>
                   {accounts !== null && 
@@ -158,7 +175,7 @@ class App extends Component {
               </Card>
             </div>
           </Tab>
-          <Tab eventKey="whitelistTab" title="Liste blanche">
+          <Tab eventKey="whitelistTab" title="Liste des votants">
             <VotingBody/>
           </Tab>
           <Tab eventKey="contact" title="Propositions">
@@ -198,6 +215,9 @@ class App extends Component {
                       </thead>
                       <tbody>
                         Display proposals here = same approach as for votersAdresses
+                        {typeof(proposals) !== 'undefined' && proposals !== null && 
+                          proposals.map((a) => <tr key={a.toString()}><td>{a}</td></tr>)
+                        }
                       </tbody>
                     </Table>
                   </ListGroup.Item>

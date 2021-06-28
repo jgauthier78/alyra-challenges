@@ -5,6 +5,7 @@ require('dotenv').config()
 const mnemonic = process.env.MNEMONIC;
 const infuraUrl = process.env.INFURA_URL;
 const networkId = process.env.NETWORK_ID;
+const accountNumber = process.env.ACCOUNT_NUMBER;
 
 module.exports = {
   /**
@@ -20,7 +21,7 @@ module.exports = {
   contracts_build_directory: path.join(__dirname, "client/src/contracts"),
   networks: {
     roporrink: {
-      provider: () => new HDWalletProvider(mnemonic,infuraUrl,2),
+      provider: () => new HDWalletProvider(mnemonic,infuraUrl,accountNumber),
       network_id: networkId,       // Ropsten's id
       gas: 5500000,        // Ropsten has a lower block limit than mainnet
       confirmations: 2,    // # of confs to wait between deployments. (default: 0)
