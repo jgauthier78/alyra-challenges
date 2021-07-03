@@ -49,8 +49,15 @@ contract Voting is Ownable {
 
     function resetVote () public onlyOwner {
         currentWorkflowStatus = WorkflowStatus.RegisteringVoters;
-        numberOfVoters = 0;
         delete winningProposal;
+        delete proposals;
+        // to reset a mapping we need to delete its values, we cannot use the direct delete command
+        uint counter;
+        for (counter = 0; counter < votersAddresses.length; counter++) {
+           delete voters[votersAddresses[counter]];
+        }        
+        delete votersAddresses;
+        numberOfVoters = 0;
     }
     
     /// @notice L'administrateur du vote enregistre une liste blanche d'électeurs identifiés par leur adresse Ethereum.

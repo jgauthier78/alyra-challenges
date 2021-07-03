@@ -44,6 +44,22 @@ class App extends Component {
     }
   };
   
+  registerVoters = async() => {
+    const { accounts, contract } = this.state;
+    const address = this.address.value;
+    
+    // Interaction avec le smart contract pour ajouter un compte 
+    try {
+      await contract.methods.registerVoters(address).send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors de l\'enregistrement des votants :\n' + err.reason, 'Incorrect Adress?');
+    }
+
+    // Récupérer la liste des comptes autorisés
+    this.runInit();
+  }
+ 
   startProposalsRegistration = async() => {
     const { accounts, contract } = this.state;
     try {
@@ -139,6 +155,17 @@ class App extends Component {
     }
   }
 
+  resetVote = async() => {
+    const { accounts, contract } = this.state;
+    
+    try {
+      await contract.methods.resetVote().send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors de la remise à zéro des votes :\n' + err.reason,);
+    }
+  }
+
   runInit = async() => {
     const { accounts, contract } = this.state;
     const connectedAccount = accounts[0];
@@ -162,6 +189,7 @@ class App extends Component {
       currentWorkflowStatus: currentWorkflowStatus,
       title: '',
       explanation: '',
+      displayRegisterVoters: false,
       displayStartProposal: false,
       displayStopProposal: false,
       displayRegisterProposal: false,
@@ -170,17 +198,19 @@ class App extends Component {
       displayVoteForProposal: false,
       displayCountVotes: false,
       displayWinningProposal: false,
-      winningProposal: null
+      winningProposal: null,
+      displayResetVote: isOwner
     };    
     switch (currentWorkflowStatus) {
       case '0':
         pageInformation.title = 'Enregistrement des votants en cours';
         if (isOwner) {
-          pageInformation.explanation = 'Veuillez saisir les adresses qui pourront participer au vote';
+          pageInformation.explanation = 'Veuillez saisir les adresses qui pourront participer au vote (onglet "Informations")';
         }
         else {
           pageInformation.explanation = 'Veuillez patienter, l\'administrateur doit lister les adresses qui participeront au vote';
         }
+        pageInformation.displayRegisterVoters = isOwner;
         pageInformation.displayStartProposal = isOwner;
         break;
       case '1':
@@ -207,7 +237,7 @@ class App extends Component {
         break;
       case '5':
         pageInformation.title = 'Votes comptés';
-        pageInformation.explanation = 'Les résultats sont disponibles en bas du tableau des propositions';
+        pageInformation.explanation = 'Les résultats sont disponibles dans le tableau des propositions';
         pageInformation.displayWinningProposal = true;
         break;
     }
@@ -246,21 +276,34 @@ class App extends Component {
     } else {
       divInformations = <div>Ici nous indiquerons le statut/avancement du vote et si l'utilisateur peut voter</div>;
     }
-
+    
+    let divRegisterVoters;
     let divOwnerProposals;
     if (isOwner) {
+      if (pageInformation.displayRegisterVoters) {
+          divRegisterVoters = <div>
+                                <br/>
+                                <Form.Group>
+                                  <Form.Control type="text" id="address"
+                                  ref={(input) => { this.address = input }}
+                                  />
+                                </Form.Group>
+                                <Button onClick={ this.registerVoters } variant="dark" >Aojuter un compte</Button>
+                              </div>;
+      }
+
       let divStartProposal;
       if (pageInformation.displayStartProposal) {
         divStartProposal = <div>
                              <br/>
-                             <Button onClick={ this.startProposalsRegistration } variant="dark" > Démarrer l'enregistrement des propositions </Button>
+                             <Button onClick={ this.startProposalsRegistration } variant="dark" >Démarrer l'enregistrement des propositions</Button>
                            </div>;
       }
       let divStopProposal;
       if (pageInformation.displayStopProposal) {
         divStartProposal = <div>
                              <br/>
-                             <Button onClick={ this.stopProposalsRegistration } variant="dark" > Arrêter l'enregistrement des propositions </Button>
+                             <Button onClick={ this.stopProposalsRegistration } variant="dark" >Arrêter l'enregistrement des propositions</Button>
                            </div>;
       }
       
@@ -280,7 +323,7 @@ class App extends Component {
                                     ref={(input) => { this.proposalDescription = input }}
                                     />
                                   </Form.Group>
-                                  <Button onClick={ this.registerProposal } variant="dark" > Ajouter la proposition</Button>
+                                  <Button onClick={ this.registerProposal } variant="dark" >Ajouter la proposition</Button>
                                 </Card.Body>
                               </>;
     }
@@ -293,7 +336,7 @@ class App extends Component {
       if (pageInformation.displaystartVotingSession) {
         divstartVotingSession = <>
                                   <div>
-                                    <Button onClick={ this.startVotingSession } variant="dark" > Démarrer les votes </Button>
+                                    <Button onClick={ this.startVotingSession } variant="dark" >Démarrer les votes </Button>
                                     <br/>
                                   </div>
                                 </>;
@@ -302,7 +345,7 @@ class App extends Component {
       if (pageInformation.displayStopVotingSession) {
         divStopVotingSession = <>
                                  <div>
-                                   <Button onClick={ this.stopVotingSession } variant="dark" > Arrêter les votes </Button>
+                                   <Button onClick={ this.stopVotingSession } variant="dark" >Arrêter les votes </Button>
                                    <br/>
                                  </div>
                                </>;
@@ -316,7 +359,7 @@ class App extends Component {
                                  ref={(input) => { this.voteNumber = input }}
                                  />
                                </Form.Group>
-                               <Button onClick={ this.voteForProposal } variant="dark" > Voter pour un numéro de proposition</Button>
+                               <Button onClick={ this.voteForProposal } variant="dark" >Voter pour un numéro de proposition</Button>
                              </>;
       }
       
@@ -340,7 +383,7 @@ class App extends Component {
     if (pageInformation && pageInformation.displayCountVotes) {
       divCountVotes = <>
                         <Card.Body>
-                          <Button onClick={ this.countVotes } variant="dark" > Décompte des votes</Button>
+                          <Button onClick={ this.countVotes } variant="dark" >Décompte des votes</Button>
                         </Card.Body>
                       </>;
     }
@@ -351,6 +394,13 @@ class App extends Component {
                              Proposition remportant le vote : "{pageInformation != null && pageInformation.winningProposal.description}"
                              &nbsp;avec {pageInformation != null && pageInformation.winningProposal.voteCount} vote(s).
                            </div>;
+    }
+    
+    let divResetVote; // always available as soon as the connectted account is the owner, so that we can proceed with tests
+    if (pageInformation && pageInformation.displayResetVote) {
+      divResetVote = <div>
+                       <Button onClick={ this.resetVote } variant="dark" >Reset complet</Button>
+                     </div>;
     }
     
     return (
@@ -377,6 +427,9 @@ class App extends Component {
               <Card style={{ width: '50rem' }}>
                 <Card.Header><strong>Liste des propositions et votes associés</strong></Card.Header>
                 {divAjouterProposition}
+                {divOwnerProposals}
+                {/* Affichage de la proposition gagnante */}
+                {divWinningProposal}
                 <ListGroup variant="flush">
                   <ListGroup.Item>
                     <Table striped bordered hover>
@@ -406,8 +459,6 @@ class App extends Component {
             {divVoting}
             {/* Décompte des votes */}
             {divCountVotes}
-            {/* Affichage de la proposition gagnante */}
-            {divWinningProposal}
           </Tab>
           <Tab eventKey="informations" title="Informations">
             <div>
@@ -427,7 +478,9 @@ class App extends Component {
                     </li>
                     <li>{divInformations}</li>
                   </ul>
+                  {divResetVote}
                 </Card.Body>
+                {divRegisterVoters}
                 <ListGroup variant="flush">
                   <ListGroup.Item>
                     <Table striped bordered hover>
