@@ -22,7 +22,7 @@ module.exports = {
   networks: {
     roporrink: {
       provider: () => new HDWalletProvider(mnemonic,infuraUrl,accountNumber),
-      network_id: networkId,       // Ropsten's id
+      network_id: networkId, // id from .env file
       gas: 5500000,        // Ropsten has a lower block limit than mainnet
       confirmations: 2,    // # of confs to wait between deployments. (default: 0)
       timeoutBlocks: 200,  // # of blocks before a deployment times out  (minimum/default: 50)

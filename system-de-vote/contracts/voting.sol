@@ -76,6 +76,11 @@ contract Voting is Ownable {
         return votersAddresses;
     }
     
+    /// @notice Cette fonction permettra à la Dapp de savoir si l'adresse est enregistrée et si elle a déjà voté
+    function getVoter() public view returns(Voter memory) {
+        return voters[msg.sender];
+    }
+    
     /// @notice L'administrateur du vote commence la session d'enregistrement de la proposition.
     function startProposalsRegistration() public onlyOwner {
         require(currentWorkflowStatus == WorkflowStatus.RegisteringVoters,

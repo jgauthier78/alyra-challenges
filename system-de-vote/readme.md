@@ -71,3 +71,7 @@ Le même onglet "Résultats" permettra aux utilisateurs de voir le résultat des
 
 * Propositions sauvegardées = accentués non sauvés ou réaffichés ?
 * Problème de temps de réponse asynchrone = comment savoir si une transaction est en cours ? Exemple = le workflow status est passé de RegisteringVoters à ProposalsRegistrationStarted mais la transaction n'est pas encore validée, quel sera le statut en cours ? Si toujours en RegisteringVoters cela permettra de retenter un start ? Pas normal.
+* gestion des événements : comment relancer seulement un runInit plutôt qu'un window.location.reload() ?
+* trop de popup en case d'evt
+* pouvoir détecter en amont les comptes qui ne sont pas whitelistés pour leur cacher l'accès au enu (vote...)
+* choix de votes : comment définir la upper bound = propositions.length ?
