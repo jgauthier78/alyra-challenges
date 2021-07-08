@@ -45,176 +45,40 @@ class App extends Component {
     }
   };
   
-  registerVoters = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    const address = this.address.value;
-    
-    // Interaction avec le smart contract pour ajouter un compte 
-    try {
-      await contract.methods.registerVoters(address).send({from: accounts[0]});
-    }
-    catch (err) {
-      alert('Une erreur est survenue lors de l\'enregistrement des votants :\n' + err.reason, 'Incorrect Adress?', titreAppli);
-    }
-
-    this.runInit();
-  }
- 
-  startProposalsRegistration = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    try {
-      await contract.methods.startProposalsRegistration().send({from: accounts[0]})
-        .then(function(res){
-          alert('Enregistrement des propositions démarré.\n'+Jsonify.stringify(res), titreAppli);
-        }).catch(function(err) {
-          alert('Erreur au démarrage des propositions :\n' + Jsonify.stringify(err), titreAppli);
-        });
-    }
-    catch (err) {
-      alert('Une erreur s\'est produite au démarrage des propositions :\n' + Jsonify.stringify(err), titreAppli);
-    }
-
-    this.runInit();
-  }
-
-  stopProposalsRegistration = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    try {
-      await contract.methods.stopProposalsRegistration().send({from: accounts[0]})
-        .then(function(res){
-          alert('Enregistrement des propositions terminé', titreAppli);
-        }).catch(function(err) {
-          alert('Erreur à l\'arrêt des propositions :\n' + err, titreAppli);
-        });
-    }
-    catch (err) {
-      alert('Une erreur s\'est produite à l\'arrêt des propositions :\n' + Jsonify.stringify(err), titreAppli);
-    }
-
-    this.runInit();
-  }
-
-  registerProposal = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    const proposalDescription = this.proposalDescription.value;
-    
-    try {
-      await contract.methods.registerProposal(proposalDescription).send({from: accounts[0]});
-    }
-    catch (err) {
-      alert('Une erreur est survenue lors de l\'ajout de la proposition :\n' + err.reason, titreAppli);
-    }
-
-    this.runInit();
-  }
- 
-  startVotingSession = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    try {
-      await contract.methods.startVotingSession().send({from: accounts[0]})
-        .then(function(res){
-          alert('Session de votes démarrée.\n'+Jsonify.stringify(res));
-        }).catch(function(err) {
-          alert('Erreur au démarrage de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
-        });
-    }
-    catch (err) {
-      alert('Une erreur s\'est produite au démarrage de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
-    }
-
-    this.runInit();
-  }
-  
-  stopVotingSession = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    try {
-      await contract.methods.stopVotingSession().send({from: accounts[0]})
-        .then(function(res){
-          alert('Session de votes terminée.\n'+Jsonify.stringify(res), titreAppli);
-        }).catch(function(err) {
-          alert('Erreur à l\'arrêt de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
-        });
-    }
-    catch (err) {
-      alert('Une erreur s\'est produite à l\'arrêt de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
-    }
-
-    this.runInit();
-  }
-  
-  voteForProposal = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    const voteNumber = this.voteNumber.value;
-    
-    try {
-      await contract.methods.voteForProposal(voteNumber).send({from: accounts[0]});
-    }
-    catch (err) {
-      alert('Une erreur est survenue lors du vote :\n' + err.reason, titreAppli);
-    }
-
-    this.runInit();
-  }
-
-  countVotes = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    
-    try {
-      await contract.methods.countVotes().send({from: accounts[0]});
-    }
-    catch (err) {
-      alert('Une erreur est survenue lors du décompte des votes :\n' + err.reason, titreAppli);
-    }
-  
-    this.runInit();
-}
-
-  resetVote = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    
-    try {
-      await contract.methods.resetVote().send({from: accounts[0]});
-    }
-    catch (err) {
-      alert('Une erreur est survenue lors de la remise à zéro des votes :\n' + err.reason, titreAppli);
-    }
-  
-    this.runInit();
-}
-
   runInit = async() => {
     const { accounts, contract, titreAppli } = this.state;
     const connectedAccount = accounts[0];
-    const contractOwner = await contract.methods.owner().call();
-    const isOwner = accounts !== null && contractOwner === connectedAccount ? true : false;
     
-    // récupérer la liste des comptes autorisés
-    let votersAdresses = null;
-    await contract.methods.getVotersAdresses().call()
-      .then(function(res){
-        votersAdresses = res; // alert('Récupération des votants : ' + Jsonify.stringify(res));
-      }).catch(function(err) {
-        alert('Erreur lors de la récupération des votants :\n' + err, titreAppli);
-      });
+    // Get contract information
+    const contractOwner = await contract.methods.owner().call(); // propriétaire
+    const currentWorkflowStatus = await contract.methods.getCurrentWorkflowStatus().call();
+    const proposals = await contract.methods.getProposals().call(); // liste des propositions
+    const votersAdresses = await contract.methods.getVotersAdresses().call(); // liste des comptes autorisés
+    const voterInformation = await contract.methods.getVoter().call(); // informations du compte connecté si il est voteur
+    const winningProposal = await contract.methods.winningProposal().call(); // proposition gagnante
 
-    // récupérer les informations du compte connecté si il est voteur
-    let voterInformation = null;
-    await contract.methods.getVoter().call()
-      .then(function(res){
-        voterInformation = res; // alert('Récupération des votants : ' + Jsonify.stringify(res));
-      }).catch(function(err) {
-        alert('Erreur lors de la récupération des information de vote du compte connecté :\n' + err, titreAppli);
-      });
-
-    // le compte connecté est-il dans la liste blanche des votants et peut-iol encore voter ?
-    let connectedAccountCanVote = voterInformation && voterInformation.isRegistered && !voterInformation.hasVoted;
+    const isOwner = accounts !== null && contractOwner === connectedAccount ? true : false;
+console.log('Jsonify.stringify(voterInformation): '+Jsonify.stringify(voterInformation));
+console.log('voterInformation.isRegistered: '+voterInformation.isRegistered);
+console.log('voterInformation.hasVoted: '+voterInformation.hasVoted);
+    // le compte connecté est-il dans la liste blanche des votants et peut-il encore voter ?
+    const connectedAccountCanVote = voterInformation && voterInformation.isRegistered && !voterInformation.hasVoted;
+console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
+    
+// TEMPORARILY RESET TO PREVIOUS WAY AS getVoter DOES NOT WORK...
+// connectedAccountCanVote = votersAdresses.includes(connectedAccount);
     
     // le compte a-t-il déjà voté ?
     let connectedAccountAlreadyVoted = voterInformation && voterInformation.hasVoted;
     
-    const currentWorkflowStatus = await contract.methods.getCurrentWorkflowStatus().call();
     let pageInformation = {
+      contractOwner: contractOwner,
       currentWorkflowStatus: currentWorkflowStatus,
+      isOwner: isOwner,
+      proposals: proposals,
+      votersAdresses: votersAdresses,
+      voterInformation: voterInformation,
+      winningProposal: winningProposal,
       title: '',
       explanation: '',
       displayRegisterVoters: false,
@@ -227,7 +91,6 @@ class App extends Component {
       displayAlreadyVoted: false,
       displayCountVotes: false,
       displayWinningProposal: false,
-      winningProposal: null,
       displayResetVote: isOwner
     };    
     switch (currentWorkflowStatus) {
@@ -275,116 +138,173 @@ class App extends Component {
         break;
     }
     
-    // récupération des propositions
-    let proposals = null;
-    await contract.methods.getProposals().call()
-      .then(function(res){
-        if (res !== 'undefined' && typeof(res.length) !== 'undefined') {
-          proposals = res;
-        }
-      }).catch(function(err) {
-        alert('Erreur lors de la récupération des propositions :\n' + err, titreAppli);
-      });
-    
-    pageInformation.winningProposal = await contract.methods.winningProposal().call();
-    
     ////////////////////////////////////
     // enregistrements des événements //
     ////////////////////////////////////
-    
-    // ProposalsRegistrationStarted - L'enregistrement des propositions a démarré
-    contract.events.ProposalsRegistrationStarted(function(error, result) {
-       if (error) {
-         alert('Une erreur est survenue au démarrage de l\'enregistrement des propositions.\n' +
-               'Détail de l\'erreur : ' + Jsonify.stringify(error), titreAppli);
-       }
-       else {
-         alert('L\'enregistrement des propositions a démarré' + Jsonify.stringify(result), titreAppli);
-         window.location.reload();;
-       }
-    });
-    
-    // ProposalsRegistrationEnded
-    contract.events.ProposalsRegistrationEnded(function(error, result) {
-       if (error) {
-         alert('Une erreur est survenue à l\'arrêt de l\'enregistrement des propositions\n' +
-               'Détail de l\'erreur : ' + Jsonify.stringify(error), titreAppli);
-       }
-       else {
-         alert('L\'enregistrement des propositions vient de terminer.\n' +
-               'Informations complémentaires : ' + Jsonify.stringify(result), alert);
-         window.location.reload();
-       }
-    });
-    
-    // ProposalRegistered(uint proposalId)
-    
-    // VotingSessionStarted
-    contract.events.VotingSessionStarted(function(error, result) {
-       if (error) {
-         alert('Une erreur est survenue à l\'arrêt de la session de vote.\n' +
-               'Détail de l\'erreur : ' + Jsonify.stringify(error), titreAppli);
-       }
-       else {
-         alert('La session de vote vient de terminer.\n' +
-               'Informations complémentaires : ' + Jsonify.stringify(result), alert);
-         window.location.reload();
-       }
-    });
-    
-    // VotingSessionEnded
-    contract.events.VotingSessionEnded(function(error, result) {
-       if (error) {
-         alert('Une erreur est survenue au démarrage de la session de vote\n' +
-               'Détail de l\'erreur : ' + Jsonify.stringify(error), titreAppli);
-       }
-       else {
-         alert('La session de vote a démarré.\n' +
-               'Informations complémentaires : ' + Jsonify.stringify(result), alert);
-         window.location.reload();
-       }
-    });
-
-    // Voted (address voter, uint proposalId)
-
-    // VotesTallied
-    contract.events.VotesTallied(function(error, result) {
-       if (error) {
-         alert('Une erreur est survenue au décompte des votes.\n' +
-               'Détail de l\'erreur : ' + Jsonify.stringify(error), titreAppli);
-       }
-       else {
-         alert('Décompte des votes terminé.\n' +
-               'Informations complémentaires : ' + Jsonify.stringify(result), alert);
-         window.location.reload();
-       }
-    });
-
-    // WorkflowStatusChange - Changement de statut du workflow
-    contract.events.WorkflowStatusChange(function(error, result) {
-       if (error) {
-         console.log('Une erreur est survenue lors du changement de statut du workflow.\n' +
-                     'Détail de l\'erreur : ' + Jsonify.stringify(error));
-       }
-       else {
-         console.log('Changement de statut du workflow. Nouveau statut : ' + Jsonify.stringify(result));
-         window.location.reload();
-       }
-    });
-    
+    contract.events.VoterAdded().on('data', (event) => this.handleVoterAdded(event))
+                                .on('error', (error) => console.error('Erreur VoterAdded : ' + Jsonify.stringify(error)));
+    contract.events.WorkflowStatusChange().on('data', (event) => this.handleWorkflowStatusChange(event))
+                                          .on('error', (error) => console.error('Erreur WorkflowStatusChange : ' + Jsonify.stringify(error)));
+    contract.events.ProposalRegistered().on('data', (event) => this.handleProposalRegistered(event))
+                                        .on('error', (error) => console.error('Erreur ProposalRegistered : ' + Jsonify.stringify(error)));
+    contract.events.Voted().on('data', (event) => this.handleVoted(event))
+                           .on('error', (error) => console.error('Erreur ProposalRegistered : ' + Jsonify.stringify(error)));
     await window.ethereum.on('accountsChanged', (accounts) => {
-       alert('Compte changé, l\'application va être rechergée');
-       window.location.reload();;
+       alert('Compte changé, l\'application va être rechargée');
+       // window.location.reload();;
     });
 
-    this.setState({ contractOwner, pageInformation, isOwner, proposals, votersAdresses });
+    this.setState({ pageInformation });
+  }
+
+  // fonction commune pour message utilisateur et debug via console
+  alertAndLog = async(message, objectToLog) => {
+    const { titreAppli } = this.state;
+    alert(message, titreAppli);
+    console.log(message + '\nInformations complémentaires : ' + Jsonify.stringify(objectToLog));
+  }
+  
+  ////////////////////////////
+  // Gestion des événements //
+  ////////////////////////////
+
+  handleVoterAdded = async(event) => {
+    this.alertAndLog('Votant ajouté.', event);
+  }
+  
+  handleWorkflowStatusChange = async(event) => {
+    this.alertAndLog('Le statut du workflow a changé. Nouveau statut : ' + event.returnValues.newStatus, event);
+  }
+  
+  handleProposalRegistered = async(event) => {
+    this.alertAndLog('Proposition ajoutée', event);
+  }
+
+  handleVoted = async(event) => {
+    this.alertAndLog('Proposition votée', event);
+  }
+
+  //////////////////////////////
+  // fonctions Set du contrat //
+  //////////////////////////////
+
+  registerVoters = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    const address = this.address.value;
+    
+    // Interaction avec le smart contract pour ajouter un compte 
+    try {
+      await contract.methods.registerVoters(address).send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors de l\'enregistrement des votants :\n' + err.reason, 'Incorrect Adress?', titreAppli);
+    }
+  }
+ 
+  startProposalsRegistration = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    try {
+      await contract.methods.startProposalsRegistration().send({from: accounts[0]})
+        .then(function(res){
+          alert('Enregistrement des propositions démarré.\n'+Jsonify.stringify(res), titreAppli);
+        });
+    }
+    catch (err) {
+      alert('Une erreur s\'est produite au démarrage des propositions.', titreAppli);
+      console.log('Une erreur s\'est produite au démarrage des propositions :\n' + Jsonify.stringify(err));
+    }
+  }
+
+  stopProposalsRegistration = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    try {
+      await contract.methods.stopProposalsRegistration().send({from: accounts[0]})
+        .then(function(res){
+          alert('Enregistrement des propositions terminé', titreAppli);
+        });
+    }
+    catch (err) {
+      alert('Une erreur s\'est produite à l\'arrêt des propositions :\n' + Jsonify.stringify(err), titreAppli);
+    }
+  }
+
+  registerProposal = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    const proposalDescription = this.proposalDescription.value;
+    
+    try {
+      await contract.methods.registerProposal(proposalDescription).send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors de l\'ajout de la proposition :\n' + err.reason, titreAppli);
+    }
+  }
+ 
+  startVotingSession = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    try {
+      await contract.methods.startVotingSession().send({from: accounts[0]})
+        .then(function(res){
+          alert('Session de votes démarrée.\n'+Jsonify.stringify(res));
+        });
+    }
+    catch (err) {
+      alert('Une erreur s\'est produite au démarrage de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
+    }
+  }
+  
+  stopVotingSession = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    try {
+      await contract.methods.stopVotingSession().send({from: accounts[0]})
+        .then(function(res){
+          alert('Session de votes terminée.\n'+Jsonify.stringify(res), titreAppli);
+        });
+    }
+    catch (err) {
+      alert('Une erreur s\'est produite à l\'arrêt de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
+    }
+  }
+  
+  voteForProposal = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    const voteNumber = this.voteNumber.value;
+    
+    try {
+      await contract.methods.voteForProposal(voteNumber).send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors du vote :\n' + err.reason, titreAppli);
+    }
+  }
+
+  countVotes = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    
+    try {
+      await contract.methods.countVotes().send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors du décompte des votes :\n' + err.reason, titreAppli);
+    }
+  }
+
+  resetVote = async() => {
+    const { accounts, contract, titreAppli } = this.state;
+    
+    try {
+      await contract.methods.resetVote().send({from: accounts[0]});
+    }
+    catch (err) {
+      alert('Une erreur est survenue lors de la remise à zéro des votes :\n' + err.reason, titreAppli);
+    }
   }
 
   render() {
-    const { accounts, contractOwner, pageInformation, isOwner, proposals, votersAdresses } = this.state;
+    const { accounts, pageInformation } = this.state;
 
     let divInformations;
-    if (isOwner) {
+    if (pageInformation && pageInformation.isOwner) {
       divInformations = <div>Vous êtes le propriétaire du contrat, en conséquence l'administrateur du vote</div>;
     } else {
       divInformations = <div>Ici nous indiquerons le statut/avancement du vote et si l'utilisateur peut voter</div>;
@@ -392,7 +312,7 @@ class App extends Component {
     
     let divRegisterVoters;
     let divOwnerProposals;
-    if (isOwner) {
+    if (pageInformation && pageInformation.isOwner) {
       if (pageInformation.displayRegisterVoters) {
           divRegisterVoters = <div>
                                 <br/>
@@ -401,7 +321,7 @@ class App extends Component {
                                   ref={(input) => { this.address = input }}
                                   />
                                 </Form.Group>
-                                <Button onClick={ this.registerVoters } variant="dark" >Aojuter un compte</Button>
+                                <Button onClick={ this.registerVoters } variant="dark" >Ajouter un compte</Button>
                               </div>;
       }
 
@@ -468,7 +388,7 @@ class App extends Component {
         divVoteForProposal = <>
                                <br/>
                                <Form.Group>
-                                 <Form.Control type="number" id="voteNumber" min="0" max="{ this.proposals && this.proposals.length }"
+                                 <Form.Control type="number" id="voteNumber" min="0" max="{ pageInformation.proposals && pageInformation.proposals.length }"
                                  ref={(input) => { this.voteNumber = input }}
                                  />
                                </Form.Group>
@@ -533,9 +453,9 @@ class App extends Component {
             <br/>
             <div style={{display: 'flex', justifyContent: 'center'}}>
               <Card style={{ width: '50rem' }}>
-                <Card.Header><strong>{pageInformation != null && pageInformation.title}</strong></Card.Header>
+                <Card.Header><strong>{pageInformation && pageInformation.title}</strong></Card.Header>
                 <Card.Body>
-                  {pageInformation != null && pageInformation.explanation}
+                  {pageInformation && pageInformation.explanation}
                 </Card.Body>
               </Card>
             </div>
@@ -559,8 +479,8 @@ class App extends Component {
                         </tr>
                       </thead>
                       <tbody>
-                        {typeof(proposals) !== 'undefined' && proposals !== null && 
-                          proposals.map((proposalRecord, index) =>
+                        {pageInformation && typeof(pageInformation.proposals) !== 'undefined' && pageInformation.proposals !== null && 
+                          pageInformation.proposals.map((proposalRecord, index) =>
                             <tr key={index}>
                               <td>{index}</td>
                               <td>{proposalRecord.description}</td>
@@ -589,7 +509,7 @@ class App extends Component {
                 <Card.Header><strong>Informations sur le contrat</strong></Card.Header>
                 <Card.Body>
                   <ul>
-                    <li>Propriétaire du contrat : {contractOwner}</li>
+                    <li>Propriétaire du contrat : {pageInformation && pageInformation.contractOwner}</li>
                     <li>Compte connecté : {accounts !== null && 
                                            accounts.map((accountRecord) => <span key={accountRecord.toString()}>{accountRecord}</span>)
                                            }
@@ -608,8 +528,8 @@ class App extends Component {
                         </tr>
                       </thead>
                       <tbody>
-                        {typeof(votersAdresses) !== 'undefined' && votersAdresses !== null && 
-                          votersAdresses.map((a) => <tr key={a.toString()}><td>{a}</td></tr>)
+                        {pageInformation && typeof(pageInformation.votersAdresses) !== 'undefined' && pageInformation.votersAdresses !== null && 
+                          pageInformation.votersAdresses.map((a) => <tr key={a.toString()}><td>{a}</td></tr>)
                         }
                       </tbody>
                     </Table>

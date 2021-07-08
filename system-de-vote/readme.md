@@ -69,9 +69,24 @@ Le même onglet "Résultats" permettra aux utilisateurs de voir le résultat des
 
 ## TODO liste, problèmes rencontrés
 
+* problème déploiement ganache, impossible de déployer mais pas de messages d'erreur, seulement le message "Pausing for 2 confirmations..." et ça ne rend jamais la main donc l'opération n'aboutit/fonctionne pas -> je m'en suis sorti en créant un network à part entière, sans passer par un HDWalletProvider, pb lié à localhost ? (j'avais bien mis cette adresse dans var infuraUrl, pas eu le temps de renommer de façon plus générique)
+
 * Propositions sauvegardées = accentués non sauvés ou réaffichés ?
-* Problème de temps de réponse asynchrone = comment savoir si une transaction est en cours ? Exemple = le workflow status est passé de RegisteringVoters à ProposalsRegistrationStarted mais la transaction n'est pas encore validée, quel sera le statut en cours ? Si toujours en RegisteringVoters cela permettra de retenter un start ? Pas normal.
-* gestion des événements : comment relancer seulement un runInit plutôt qu'un window.location.reload() ?
-* trop de popup en case d'evt
-* pouvoir détecter en amont les comptes qui ne sont pas whitelistés pour leur cacher l'accès au enu (vote...)
-* choix de votes : comment définir la upper bound = propositions.length ?
+
+* Problème de temps de réponse asynchrone = comment savoir si une transaction est en cours ? Exemple = le workflow status est passé de RegisteringVoters à ProposalsRegistrationStarted mais la transaction n'est pas encore validée, quel sera le statut en cours ? Si toujours en RegisteringVoters cela permettra de retenter un start ? Pas normal. Je ne vois pas trop de solutions si pas de serveur centralisé avec minimum de données (temporaires/cache) centralisées aussi. Pas facile à tester en localhost. -> possibilité de récup les tx pending.
+
+* gestion des événements : comment relancer seulement un runInit plutôt qu'un window.location.reload() ? Question vague, voir code...
+
+* mauvaise approche des calls Init dans apps.js ?
+
+* trop de popup en case d'evt. Même pas de question, encore plus vague. On verra si on reproduit...
+
+* pouvoir détecter en amont les comptes qui ne sont pas whitelistés pour leur cacher l'accès au menu (vote...) = j'ai créé une fonction getVoter mais ne renvoie rien, revoir le .sol si on a le temps.
+
+* choix de votes : comment définir la upper bound = propositions.length ? Question liée html/React je pense = comment définir dynamiquement la property max (de toute façon ne semble pas couvrir l'input direct) -> ajouter plutôt bouton sur chaque ligne
+
+* pourquoi certains "nouveaux" accounts (à partir du 4è = Test Ropsten 3) ne sont pas "visibles" par web3js = pas de détection de changement de compte ? Question liée = comment faire l'association ente mon app localhost:3000 et un nouvel account une fois que les autres ont été associés ? -> seul moyen trouvé = aller sur un compte déjà associé, "delete all acounts" et réassocier tous. Mais depuis le nouveau le seul message ="Account x is not connected to any site" et pas d'autres options pour l'associer (cf https://metamask.zendesk.com/hc/en-us/articles/360045901112-How-to-connect-to-a-website-dapp-in-V8-desktop-browser-extension- qui ne semble pas fonctionner)
+J'ai trouvé un article sur le mode privacy depuis la v7 (https://medium.com/metamask/privacy-mode-is-now-enabled-by-default-1c1c957f4d57) mais le menu a changé depuis.
+
+* tests dapp : en situation normale plutôt ok, mais dès que problèmes "QA" (re-vote alors que déjà voté, pas assez d'ethers, reject...)
+

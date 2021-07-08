@@ -38,13 +38,15 @@ contract Voting is Ownable {
     mapping(address => Voter) voters;
     uint numberOfVoters;
     
-    event ProposalsRegistrationStarted(); // ok used in startProposalsRegistration function
-    event ProposalsRegistrationEnded(); // ok used in stopProposalsRegistration function
+    // the following events are replaced with WorkflowStatusChange, enough
+    // event ProposalsRegistrationStarted(); // ok used in startProposalsRegistration function
+    // event ProposalsRegistrationEnded(); // ok used in stopProposalsRegistration function
+    // event VotingSessionStarted(); // ok used in startVotingSession function
+    // event VotingSessionEnded(); // ok used in stopVotingSession function
+    // event VotesTallied(); // ok used in countVotes function
+    event VoterAdded (address voter); // ok used in registerVoters function
     event ProposalRegistered(uint proposalId); // ok used in registerProposal function 
-    event VotingSessionStarted(); // ok used in startVotingSession function
-    event VotingSessionEnded(); // ok used in stopVotingSession function
     event Voted (address voter, uint proposalId); // ok used in voteForProposal function
-    event VotesTallied(); // ok used in countVotes function
     event WorkflowStatusChange(WorkflowStatus previousStatus, WorkflowStatus newStatus);// used in setNewWorkflowStatus
 
     function resetVote () public onlyOwner {
@@ -69,6 +71,7 @@ contract Voting is Ownable {
         votersAddresses.push(_address);
         voters[_address] = Voter(true, false, 0);
         numberOfVoters++;
+        emit VoterAdded(_address);
     }
     
     /// @notice Cette fonction permettra à la Dapp de lister visuellement tous les votants déclarés
@@ -87,7 +90,7 @@ contract Voting is Ownable {
                 "You can only start Proposals Registration once");
         require(numberOfVoters > 2, "You should register some voters first (at least 3)");
         setNewWorkflowStatus(WorkflowStatus.ProposalsRegistrationStarted);
-        emit ProposalsRegistrationStarted();
+        // emit ProposalsRegistrationStarted();
     }
 
     /// @notice Les électeurs inscrits sont autorisés à enregistrer leurs propositions
@@ -111,7 +114,7 @@ contract Voting is Ownable {
         require(currentWorkflowStatus == WorkflowStatus.ProposalsRegistrationStarted,
                 "You can only stop Proposals Registration once");
         setNewWorkflowStatus(WorkflowStatus.ProposalsRegistrationEnded);
-        emit ProposalsRegistrationEnded();
+        // emit ProposalsRegistrationEnded();
     }
     
     /// @notice L'administrateur du vote commence la session de vote.
@@ -119,7 +122,7 @@ contract Voting is Ownable {
         require(currentWorkflowStatus == WorkflowStatus.ProposalsRegistrationEnded,
                 "You can only start Voting Session once Proposals Registration has been stopped");
         setNewWorkflowStatus(WorkflowStatus.VotingSessionStarted);
-        emit VotingSessionStarted();
+        // emit VotingSessionStarted();
     }
 
     /// @notice Les électeurs inscrits votent pour leurs propositions préférées.
@@ -138,7 +141,7 @@ contract Voting is Ownable {
     function stopVotingSession() public onlyOwner {
         require(currentWorkflowStatus == WorkflowStatus.VotingSessionStarted, "You can only stop Voting Session once");
         setNewWorkflowStatus(WorkflowStatus.VotingSessionEnded);
-        emit VotingSessionEnded();
+        // emit VotingSessionEnded();
     }
 
     /// @notice L'administrateur du vote comptabilise les votes.
@@ -152,7 +155,7 @@ contract Voting is Ownable {
         }        
         winningProposal = proposals[winningProposalId];
         setNewWorkflowStatus(WorkflowStatus.VotesTallied);
-        emit VotesTallied();
+        // emit VotesTallied();
     }
     
     /// @notice Le vote n'est pas secret ; chaque électeur peut voir les votes des autres.

@@ -28,6 +28,11 @@ module.exports = {
       timeoutBlocks: 200,  // # of blocks before a deployment times out  (minimum/default: 50)
       skipDryRun: true     // Skip dry run before migrations? (default: false for public nets )
     },
+    ganache   : {
+     host: "127.0.0.1",     // Localhost (default: none)
+     port: 7545,            // 7545 = Ganache Standard Ethereum port (default: none)
+     network_id: "*",       // Any network (default: none)
+    },
   },
   // Set default mocha options here, use special reporters etc.
   mocha: {
