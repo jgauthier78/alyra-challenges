@@ -16,10 +16,12 @@ class App extends Component {
 
   state = { web3: null, accounts: null, contract: null };
   
-  componentWillMount = async () => {
+  componentDidMount = async () => {
     const titreAppli = "Défi - Système de vote";
     try {
-
+      // IMPORTANT: debugMode à passer à true/false pour visualisation dans la console !
+      const debugMode = false;
+      
       // Récupérer le provider web3
       const web3 = await getWeb3();
   
@@ -37,106 +39,33 @@ class App extends Component {
 
       // Set web3, accounts, and contract to the state, and then proceed with an
       // example of interacting with the contract's methods.
-      this.setState({ web3, accounts, contract: instance, titreAppli }, this.runInit);
+      this.setState({ accounts, contract: instance, debugMode, titreAppli, web3 }, this.runInit);
     } catch (error) {
       // Catch any errors for any of the above operations.
-      alert('Non-Ethereum browser detected. Can you please try to install MetaMask before starting.', titreAppli);
-      console.error(error);
+      this.alertAndLog('Non-Ethereum browser detected. Can you please try to install MetaMask before starting.', error);
     }
   };
   
   runInit = async() => {
-    const { accounts, contract, titreAppli } = this.state;
-    const connectedAccount = accounts[0];
+    const { contract } = this.state;
     
     // Get contract information
     const contractOwner = await contract.methods.owner().call(); // propriétaire
     const currentWorkflowStatus = await contract.methods.getCurrentWorkflowStatus().call();
     const proposals = await contract.methods.getProposals().call(); // liste des propositions
     const votersAdresses = await contract.methods.getVotersAdresses().call(); // liste des comptes autorisés
-    const voterInformation = await contract.methods.getVoter().call(); // informations du compte connecté si il est voteur
     const winningProposal = await contract.methods.winningProposal().call(); // proposition gagnante
 
-    const isOwner = accounts !== null && contractOwner === connectedAccount ? true : false;
-console.log('Jsonify.stringify(voterInformation): '+Jsonify.stringify(voterInformation));
-console.log('voterInformation.isRegistered: '+voterInformation.isRegistered);
-console.log('voterInformation.hasVoted: '+voterInformation.hasVoted);
-    // le compte connecté est-il dans la liste blanche des votants et peut-il encore voter ?
-    const connectedAccountCanVote = voterInformation && voterInformation.isRegistered && !voterInformation.hasVoted;
-console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
-    
-// TEMPORARILY RESET TO PREVIOUS WAY AS getVoter DOES NOT WORK...
-// connectedAccountCanVote = votersAdresses.includes(connectedAccount);
-    
-    // le compte a-t-il déjà voté ?
-    let connectedAccountAlreadyVoted = voterInformation && voterInformation.hasVoted;
-    
-    let pageInformation = {
+    let contractInformation = {
       contractOwner: contractOwner,
       currentWorkflowStatus: currentWorkflowStatus,
-      isOwner: isOwner,
       proposals: proposals,
       votersAdresses: votersAdresses,
-      voterInformation: voterInformation,
-      winningProposal: winningProposal,
-      title: '',
-      explanation: '',
-      displayRegisterVoters: false,
-      displayStartProposal: false,
-      displayStopProposal: false,
-      displayRegisterProposal: false,
-      displaystartVotingSession: false,
-      displayStopVotingSession: false,
-      displayVoteForProposal: false,
-      displayAlreadyVoted: false,
-      displayCountVotes: false,
-      displayWinningProposal: false,
-      displayResetVote: isOwner
-    };    
-    switch (currentWorkflowStatus) {
-      case '0':
-        pageInformation.title = 'Enregistrement des votants en cours';
-        if (isOwner) {
-          pageInformation.explanation = 'Veuillez saisir les adresses qui pourront participer au vote (onglet "Informations")';
-        }
-        else {
-          pageInformation.explanation = 'Veuillez patienter, l\'administrateur doit lister les adresses qui participeront au vote';
-        }
-        pageInformation.displayRegisterVoters = isOwner;
-        pageInformation.displayStartProposal = isOwner;
-        break;
-      case '1':
-        pageInformation.title = 'Enregistrement des propositions commencé';
-        pageInformation.explanation = 'Vous pouvez saisir une proposition';
-        pageInformation.displayStopProposal = isOwner;
-        pageInformation.displayRegisterProposal = connectedAccountCanVote;
-        break;
-      case '2':
-        pageInformation.title = 'Enregistrement des propositions terminé';
-        pageInformation.explanation = 'La session de vote n\'a pas encore démarré';
-        pageInformation.displaystartVotingSession = isOwner;
-        break;
-      case '3':
-        pageInformation.title = 'Session de votes démarrée';
-        pageInformation.explanation = 'Vous pouvez désormais voter pour votre choix';
-        pageInformation.displayStopVotingSession = isOwner;
-        pageInformation.displayVoteForProposal = connectedAccountCanVote;
-        pageInformation.displayAlreadyVoted = connectedAccountAlreadyVoted;
-        break;
-      case '4':
-        pageInformation.title = 'Session de votes terminée';
-        pageInformation.explanation = 'Veuillez attendre que l\'administrateur ait décompté les votes';
-        pageInformation.displayCountVotes = isOwner;
-        break;
-      case '5':
-        pageInformation.title = 'Votes comptés';
-        pageInformation.explanation = 'Les résultats sont disponibles dans le tableau des propositions';
-        pageInformation.displayWinningProposal = true;
-        break;
-      default:
-        alert('currentWorkflowStatus avec valeur inconnue (' + currentWorkflowStatus + ')', titreAppli);
-        break;
-    }
+      winningProposal: winningProposal
+    };
+    
+    this.setState({ contractInformation });
+    this.setAccountInformation();
     
     ////////////////////////////////////
     // enregistrements des événements //
@@ -149,31 +78,151 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
                                         .on('error', (error) => console.error('Erreur ProposalRegistered : ' + Jsonify.stringify(error)));
     contract.events.Voted().on('data', (event) => this.handleVoted(event))
                            .on('error', (error) => console.error('Erreur ProposalRegistered : ' + Jsonify.stringify(error)));
-    await window.ethereum.on('accountsChanged', (accounts) => {
-       alert('Compte changé, l\'application va être rechargée');
-       // window.location.reload();;
-    });
+    window.ethereum.on('accountsChanged', (accounts) => this.handleAccountsChanged(accounts));
 
+  }
+  
+  // définition des informations du compte connecté
+  setAccountInformation = async() => {
+    const { accounts, contract, contractInformation } = this.state;
+    const connectedAccount = accounts[0];
+
+    const voterInformation = await contract.methods.getVoter(connectedAccount).call(); // informations du compte connecté si il est voteur
+    const canVote = voterInformation && voterInformation.isRegistered && !voterInformation.hasVoted;
+    const isOwner = connectedAccount === contractInformation.contractOwner ? true : false;
+    const isRegistered = voterInformation && voterInformation.isRegistered;
+    const hasVoted = voterInformation && voterInformation.hasVoted;
+
+    this.logify('setAccountInformation - connectedAccount', connectedAccount);
+    this.logify('setAccountInformation - voterInformation', voterInformation);
+    this.logify('setAccountInformation - contractInformation', contractInformation);
+    this.logify('setAccountInformation - connectedAccount === contractInformation.contractOwner', connectedAccount === contractInformation.contractOwner);
+    
+    let accountInformation = {
+      account: connectedAccount,
+      canVote: canVote,
+      hasVoted: hasVoted,
+      isOwner: isOwner,
+      isRegistered: isRegistered
+    };
+    this.setState({ accountInformation });
+    this.setPageInformation(); // changing account means refreshing the page information as well
+  };
+  
+  // définition des éléments de la page en fonction du statut
+  setPageInformation = async() => {
+    const { accountInformation, contractInformation } = this.state;
+
+    this.logify('setPageInformation - accountInformation.isOwner', accountInformation.isOwner);
+    
+    let pageInformation = {
+      title: '',
+      explanation: '',
+      displayRegisterVoters: false,
+      displayStartProposal: false,
+      displayStopProposal: false,
+      displayRegisterProposal: false,
+      displaystartVotingSession: false,
+      displayStopVotingSession: false,
+      displayVoteForProposal: false,
+      displayAlreadyVoted: false,
+      displayCountVotes: false,
+      displayWinningProposal: false,
+      displayResetVote: accountInformation.isOwner
+    };    
+    switch (contractInformation.currentWorkflowStatus) {
+      case '0':
+        pageInformation.title = 'Enregistrement des votants en cours';
+        if (accountInformation.isOwner) {
+          pageInformation.explanation = 'Veuillez saisir les adresses qui pourront participer au vote (onglet "Informations")';
+        }
+        else {
+          pageInformation.explanation = 'Veuillez patienter, l\'administrateur doit lister les adresses qui participeront au vote';
+        }
+        pageInformation.displayRegisterVoters = accountInformation.isOwner;
+        pageInformation.displayStartProposal = accountInformation.isOwner;
+        break;
+      case '1':
+        pageInformation.title = 'Enregistrement des propositions commencé';
+        pageInformation.explanation = 'Vous pouvez saisir une proposition';
+        pageInformation.displayStopProposal = accountInformation.isOwner;
+        pageInformation.displayRegisterProposal = accountInformation.canVote;
+        break;
+      case '2':
+        pageInformation.title = 'Enregistrement des propositions terminé';
+        pageInformation.explanation = 'La session de vote n\'a pas encore démarré';
+        pageInformation.displaystartVotingSession = accountInformation.isOwner;
+        break;
+      case '3':
+        pageInformation.title = 'Session de votes démarrée';
+        pageInformation.explanation = 'Vous pouvez désormais voter pour votre choix';
+        pageInformation.displayStopVotingSession = accountInformation.isOwner;
+        pageInformation.displayVoteForProposal = accountInformation.canVote;
+        pageInformation.displayAlreadyVoted = accountInformation.hasVoted;
+        break;
+      case '4':
+        pageInformation.title = 'Session de votes terminée';
+        pageInformation.explanation = 'Veuillez attendre que l\'administrateur ait décompté les votes';
+        pageInformation.displayCountVotes = accountInformation.isOwner;
+        break;
+      case '5':
+        pageInformation.title = 'Votes comptés';
+        pageInformation.explanation = 'Les résultats sont disponibles dans le tableau des propositions';
+        pageInformation.displayWinningProposal = true;
+        break;
+      default:
+        this.alertAndLog('currentWorkflowStatus avec valeur inconnue.', contractInformation);
+        break;
+    }
     this.setState({ pageInformation });
   }
-
-  // fonction commune pour message utilisateur et debug via console
+  
+  // fonctions communes pour message utilisateur et debug via console
   alertAndLog = async(message, objectToLog) => {
     const { titreAppli } = this.state;
     alert(message, titreAppli);
-    console.log(message + '\nInformations complémentaires : ' + Jsonify.stringify(objectToLog));
+    this.logify(message, objectToLog);
+  }
+  
+  // fonction pour logger en cas de debug
+  // ATTENTION: penser  mettre debugMode = true; dans le state en début de programme !
+  logify = async (message, objectToLog) => {
+    const { debugMode } = this.state;
+    if (debugMode) {
+      console.log(message + '\nInformations complémentaires : ' + Jsonify.stringify(objectToLog));
+    }
   }
   
   ////////////////////////////
   // Gestion des événements //
   ////////////////////////////
 
+  handleAccountsChanged = async(newAccounts) => {
+    const { web3 } = this.state;
+    this.logify('handleAccountsChanged - newAccounts', newAccounts);
+    // ! obligation de reloader les accounts depuis web3.eth.getAccounts
+    // car différence de casse avec les accounts venant de window.ethereum.on('accountsChanged')
+    // Exemple :
+    // depuis web3.eth.getAccounts           = 0x1a1812a21248d769ce68c85c69a25a7092b26d82
+    // window.ethereum.on('accountsChanged') = 0x1a1812A21248D769cE68C85c69a25a7092B26D82
+    const reloadedAccounts = await web3.eth.getAccounts();
+    this.logify('handleAccountsChanged - reloadedAccounts', reloadedAccounts);
+    this.setState({ accounts: reloadedAccounts });
+    this.setAccountInformation();
+  }
+
   handleVoterAdded = async(event) => {
-    this.alertAndLog('Votant ajouté.', event);
+    const { contract, contractInformation } = this.state;
+    contractInformation.votersAdresses = await contract.methods.getVotersAdresses().call(); // liste des comptes autorisés
+    this.setState({ contractInformation });    
+    this.setAccountInformation();
   }
   
   handleWorkflowStatusChange = async(event) => {
-    this.alertAndLog('Le statut du workflow a changé. Nouveau statut : ' + event.returnValues.newStatus, event);
+    const { contractInformation } = this.state;
+    contractInformation.currentWorkflowStatus = event.returnValues.newStatus;
+    this.setState({ contractInformation });    
+    this.setAccountInformation();
   }
   
   handleProposalRegistered = async(event) => {
@@ -189,7 +238,7 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
   //////////////////////////////
 
   registerVoters = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     const address = this.address.value;
     
     // Interaction avec le smart contract pour ajouter un compte 
@@ -197,114 +246,113 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
       await contract.methods.registerVoters(address).send({from: accounts[0]});
     }
     catch (err) {
-      alert('Une erreur est survenue lors de l\'enregistrement des votants :\n' + err.reason, 'Incorrect Adress?', titreAppli);
+      this.alertAndLog('Une erreur est survenue lors de l\'enregistrement des votants.', err);
     }
   }
  
   startProposalsRegistration = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     try {
       await contract.methods.startProposalsRegistration().send({from: accounts[0]})
         .then(function(res){
-          alert('Enregistrement des propositions démarré.\n'+Jsonify.stringify(res), titreAppli);
+          this.logify('Enregistrement des propositions démarré.', res);
         });
     }
     catch (err) {
-      alert('Une erreur s\'est produite au démarrage des propositions.', titreAppli);
-      console.log('Une erreur s\'est produite au démarrage des propositions :\n' + Jsonify.stringify(err));
+      this.alertAndLog('Une erreur s\'est produite au démarrage des propositions.', err);
     }
   }
 
   stopProposalsRegistration = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     try {
       await contract.methods.stopProposalsRegistration().send({from: accounts[0]})
         .then(function(res){
-          alert('Enregistrement des propositions terminé', titreAppli);
+          this.logify('Enregistrement des propositions terminé.', res);
         });
     }
     catch (err) {
-      alert('Une erreur s\'est produite à l\'arrêt des propositions :\n' + Jsonify.stringify(err), titreAppli);
+      this.alertAndLog('Une erreur s\'est produite à l\'arrêt des propositions.', err);
     }
   }
 
   registerProposal = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     const proposalDescription = this.proposalDescription.value;
     
     try {
       await contract.methods.registerProposal(proposalDescription).send({from: accounts[0]});
     }
     catch (err) {
-      alert('Une erreur est survenue lors de l\'ajout de la proposition :\n' + err.reason, titreAppli);
+      this.alertAndLog('Une erreur est survenue lors de l\'ajout de la proposition.', err);
     }
   }
  
   startVotingSession = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     try {
       await contract.methods.startVotingSession().send({from: accounts[0]})
         .then(function(res){
-          alert('Session de votes démarrée.\n'+Jsonify.stringify(res));
+          this.logify('Session de votes démarrée.', res);
         });
     }
     catch (err) {
-      alert('Une erreur s\'est produite au démarrage de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
+      this.alertAndLog('Une erreur s\'est produite au démarrage de la session de votes.', err);
     }
   }
   
   stopVotingSession = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     try {
       await contract.methods.stopVotingSession().send({from: accounts[0]})
         .then(function(res){
-          alert('Session de votes terminée.\n'+Jsonify.stringify(res), titreAppli);
+          this.logify('Session de votes terminée.', res);
         });
     }
     catch (err) {
-      alert('Une erreur s\'est produite à l\'arrêt de la session de votes :\n' + Jsonify.stringify(err), titreAppli);
+      this.alertAndLog('Une erreur s\'est produite à l\'arrêt de la session de votes.', err);
     }
   }
   
   voteForProposal = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     const voteNumber = this.voteNumber.value;
     
     try {
       await contract.methods.voteForProposal(voteNumber).send({from: accounts[0]});
     }
     catch (err) {
-      alert('Une erreur est survenue lors du vote :\n' + err.reason, titreAppli);
+      this.alertAndLog('Une erreur est survenue lors du vote.', err);
     }
   }
 
   countVotes = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     
     try {
       await contract.methods.countVotes().send({from: accounts[0]});
     }
     catch (err) {
-      alert('Une erreur est survenue lors du décompte des votes :\n' + err.reason, titreAppli);
+      this.alertAndLog('Une erreur est survenue lors du décompte des votes.', err);
     }
   }
 
   resetVote = async() => {
-    const { accounts, contract, titreAppli } = this.state;
+    const { accounts, contract } = this.state;
     
     try {
       await contract.methods.resetVote().send({from: accounts[0]});
     }
     catch (err) {
-      alert('Une erreur est survenue lors de la remise à zéro des votes :\n' + err.reason, titreAppli);
+      this.alertAndLog('Une erreur est survenue lors de la remise à zéro des votes.', err);
     }
   }
 
   render() {
-    const { accounts, pageInformation } = this.state;
+    const { accounts, accountInformation, contractInformation, pageInformation } = this.state;
 
     let divInformations;
-    if (pageInformation && pageInformation.isOwner) {
+    if (accountInformation && accountInformation.isOwner) {
       divInformations = <div>Vous êtes le propriétaire du contrat, en conséquence l'administrateur du vote</div>;
     } else {
       divInformations = <div>Ici nous indiquerons le statut/avancement du vote et si l'utilisateur peut voter</div>;
@@ -312,7 +360,7 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
     
     let divRegisterVoters;
     let divOwnerProposals;
-    if (pageInformation && pageInformation.isOwner) {
+    if (accountInformation && accountInformation.isOwner && pageInformation) {
       if (pageInformation.displayRegisterVoters) {
           divRegisterVoters = <div>
                                 <br/>
@@ -388,7 +436,7 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
         divVoteForProposal = <>
                                <br/>
                                <Form.Group>
-                                 <Form.Control type="number" id="voteNumber" min="0" max="{ pageInformation.proposals && pageInformation.proposals.length }"
+                                 <Form.Control type="number" id="voteNumber" min="0" max="{ contractInformation.proposals && contractInformation.proposals.length }"
                                  ref={(input) => { this.voteNumber = input }}
                                  />
                                </Form.Group>
@@ -429,8 +477,8 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
     let divWinningProposal;
     if (pageInformation && pageInformation.displayWinningProposal) {
       divWinningProposal = <div>
-                             Proposition remportant le vote : "{pageInformation != null && pageInformation.winningProposal.description}"
-                             &nbsp;avec {pageInformation != null && pageInformation.winningProposal.voteCount} vote(s).
+                             Proposition remportant le vote : "{contractInformation != null && contractInformation.winningProposal.description}"
+                             &nbsp;avec {contractInformation != null && contractInformation.winningProposal.voteCount} vote(s).
                            </div>;
     }
     
@@ -479,8 +527,8 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
                         </tr>
                       </thead>
                       <tbody>
-                        {pageInformation && typeof(pageInformation.proposals) !== 'undefined' && pageInformation.proposals !== null && 
-                          pageInformation.proposals.map((proposalRecord, index) =>
+                        {contractInformation && typeof(contractInformation.proposals) !== 'undefined' && contractInformation.proposals !== null && 
+                          contractInformation.proposals.map((proposalRecord, index) =>
                             <tr key={index}>
                               <td>{index}</td>
                               <td>{proposalRecord.description}</td>
@@ -509,7 +557,7 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
                 <Card.Header><strong>Informations sur le contrat</strong></Card.Header>
                 <Card.Body>
                   <ul>
-                    <li>Propriétaire du contrat : {pageInformation && pageInformation.contractOwner}</li>
+                    <li>Propriétaire du contrat : {contractInformation && contractInformation.contractOwner}</li>
                     <li>Compte connecté : {accounts !== null && 
                                            accounts.map((accountRecord) => <span key={accountRecord.toString()}>{accountRecord}</span>)
                                            }
@@ -528,8 +576,8 @@ console.log('connectedAccountCanVote : ' + connectedAccountCanVote);
                         </tr>
                       </thead>
                       <tbody>
-                        {pageInformation && typeof(pageInformation.votersAdresses) !== 'undefined' && pageInformation.votersAdresses !== null && 
-                          pageInformation.votersAdresses.map((a) => <tr key={a.toString()}><td>{a}</td></tr>)
+                        {contractInformation && typeof(contractInformation.votersAdresses) !== 'undefined' && contractInformation.votersAdresses !== null && 
+                          contractInformation.votersAdresses.map((a) => <tr key={a.toString()}><td>{a}</td></tr>)
                         }
                       </tbody>
                     </Table>

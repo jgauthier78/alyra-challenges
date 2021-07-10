@@ -80,8 +80,8 @@ contract Voting is Ownable {
     }
     
     /// @notice Cette fonction permettra à la Dapp de savoir si l'adresse est enregistrée et si elle a déjà voté
-    function getVoter() public view returns(Voter memory) {
-        return voters[msg.sender];
+    function getVoter(address _address) public view returns(Voter memory) {
+        return voters[_address];
     }
     
     /// @notice L'administrateur du vote commence la session d'enregistrement de la proposition.
