@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { stopReportingRuntimeErrors } from "react-error-overlay";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import getWeb3 from "./getWeb3";
 import Button from 'react-bootstrap/Button';
@@ -11,6 +12,10 @@ import Table from 'react-bootstrap/Table';
 import Tabs from 'react-bootstrap/Tabs';
 import VotingContract from "./contracts/Voting.json";
 import "./App.css";
+
+if (process.env.NODE_ENV === 'development') {
+  stopReportingRuntimeErrors();
+}
 
 class App extends Component {
 
@@ -155,7 +160,15 @@ class App extends Component {
         break;
       case '3':
         pageInformation.title = 'Session de votes démarrée';
-        pageInformation.explanation = 'Vous pouvez désormais voter pour votre choix';
+        if (accountInformation.hasVoted) {
+          pageInformation.explanation = 'Vous avez déjà voté';
+        }
+        else if (accountInformation.canVote) {
+          pageInformation.explanation = 'Vous pouvez désormais voter pour votre choix';
+        }
+        else {
+          pageInformation.explanation = 'Vous ne pouvez qu\'assister aux votes en direct';
+        }
         pageInformation.displayStopVotingSession = accountInformation.isOwner;
         pageInformation.displayVoteForProposal = accountInformation.canVote;
         pageInformation.displayAlreadyVoted = accountInformation.hasVoted;
@@ -189,8 +202,20 @@ class App extends Component {
   logify = async (message, objectToLog) => {
     const { debugMode } = this.state;
     if (debugMode) {
-      console.log(message + '\nInformations complémentaires : ' + Jsonify.stringify(objectToLog));
+      if (objectToLog) {
+        console.log(message + '\nInformations complémentaires : ' + Jsonify.stringify(objectToLog));
+      }
+      else {
+        console.log(message);
+      }
     }
+  }
+  
+  reloadProposals = async () => {
+    const { contract, contractInformation } = this.state;
+    contractInformation.proposals = await contract.methods.getProposals().call(); // liste des propositions
+    this.setState({ contractInformation });
+    this.setAccountInformation();
   }
   
   ////////////////////////////
@@ -212,25 +237,31 @@ class App extends Component {
   }
 
   handleVoterAdded = async(event) => {
+    this.logify('handleVoterAdded - event', event);
     const { contract, contractInformation } = this.state;
     contractInformation.votersAdresses = await contract.methods.getVotersAdresses().call(); // liste des comptes autorisés
     this.setState({ contractInformation });    
-    this.setAccountInformation();
   }
   
   handleWorkflowStatusChange = async(event) => {
-    const { contractInformation } = this.state;
+    this.logify('handleWorkflowStatusChange - event', event);
+    const { contract, contractInformation } = this.state;
     contractInformation.currentWorkflowStatus = event.returnValues.newStatus;
+    if (contractInformation.currentWorkflowStatus === '5') {
+      contractInformation.winningProposal = await contract.methods.winningProposal().call(); // proposition gagnante
+    }
     this.setState({ contractInformation });    
     this.setAccountInformation();
   }
   
   handleProposalRegistered = async(event) => {
-    this.alertAndLog('Proposition ajoutée', event);
+    this.logify('handleProposalRegistered - event', event);
+    this.reloadProposals();
   }
 
   handleVoted = async(event) => {
-    this.alertAndLog('Proposition votée', event);
+    this.logify('handleVoted - event', event);
+    this.reloadProposals();
   }
 
   //////////////////////////////
@@ -242,110 +273,99 @@ class App extends Component {
     const address = this.address.value;
     
     // Interaction avec le smart contract pour ajouter un compte 
-    try {
-      await contract.methods.registerVoters(address).send({from: accounts[0]});
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur est survenue lors de l\'enregistrement des votants.', err);
-    }
+    await contract.methods.registerVoters(address).send({from: accounts[0]}).then(response => {
+      this.address.value = '';
+      this.logify('Enregistrement des propositions démarré.', response);
+    }).catch(error => {
+      var additionalInfo = '';
+      if (error && error.reason) {
+        additionalInfo = '\n' + error.reason;
+      }
+      this.alertAndLog('Une erreur est survenue lors de l\'enregistrement des votants.' + additionalInfo, error);
+    });
   }
  
   startProposalsRegistration = async() => {
     const { accounts, contract } = this.state;
-    try {
-      await contract.methods.startProposalsRegistration().send({from: accounts[0]})
-        .then(function(res){
-          this.logify('Enregistrement des propositions démarré.', res);
-        });
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur s\'est produite au démarrage des propositions.', err);
-    }
-  }
-
-  stopProposalsRegistration = async() => {
-    const { accounts, contract } = this.state;
-    try {
-      await contract.methods.stopProposalsRegistration().send({from: accounts[0]})
-        .then(function(res){
-          this.logify('Enregistrement des propositions terminé.', res);
-        });
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur s\'est produite à l\'arrêt des propositions.', err);
-    }
+    
+    await contract.methods.startProposalsRegistration().send({from: accounts[0]}).then(response => {
+      this.logify('Enregistrement des propositions démarré.', response);
+    }).catch(error => {
+      this.alertAndLog('Une erreur s\'est produite au démarrage des propositions.', error);
+    });
   }
 
   registerProposal = async() => {
     const { accounts, contract } = this.state;
     const proposalDescription = this.proposalDescription.value;
     
-    try {
-      await contract.methods.registerProposal(proposalDescription).send({from: accounts[0]});
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur est survenue lors de l\'ajout de la proposition.', err);
-    }
+    await contract.methods.registerProposal(proposalDescription).send({from: accounts[0]}).then(response => {
+      this.logify('Enregistrement d\'une proposition : ' +this.proposalDescription.value, response);
+      this.proposalDescription.value= "";
+    }).catch(error => {
+      this.alertAndLog('Une erreur est survenue lors de l\'ajout de la proposition.', error);
+    });
   }
  
+  stopProposalsRegistration = async() => {
+    const { accounts, contract } = this.state;
+    
+    await contract.methods.stopProposalsRegistration().send({from: accounts[0]}).then(response => {
+      this.logify('Enregistrement des propositions terminé.', response);
+    }).catch(error => {
+      this.alertAndLog('Une erreur s\'est produite à l\'arrêt des propositions.', error);
+    });
+  }
+
   startVotingSession = async() => {
     const { accounts, contract } = this.state;
-    try {
-      await contract.methods.startVotingSession().send({from: accounts[0]})
-        .then(function(res){
-          this.logify('Session de votes démarrée.', res);
-        });
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur s\'est produite au démarrage de la session de votes.', err);
-    }
+    
+    await contract.methods.startVotingSession().send({from: accounts[0]}).then(response => {
+      this.logify('Session de votes démarrée.', response);
+    }).catch(error => {
+      this.alertAndLog('Une erreur s\'est produite au démarrage de la session de votes.', error);
+    });
   }
   
   stopVotingSession = async() => {
     const { accounts, contract } = this.state;
-    try {
-      await contract.methods.stopVotingSession().send({from: accounts[0]})
-        .then(function(res){
-          this.logify('Session de votes terminée.', res);
-        });
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur s\'est produite à l\'arrêt de la session de votes.', err);
-    }
+    
+    await contract.methods.stopVotingSession().send({from: accounts[0]}).then(response => {
+      this.logify('Session de votes terminée.', response);
+    }).catch(error => {
+      this.alertAndLog('Une erreur s\'est produite à l\'arrêt de la session de votes.', error);
+    });
   }
   
-  voteForProposal = async() => {
+  voteForProposal = async(event) => {
     const { accounts, contract } = this.state;
-    const voteNumber = this.voteNumber.value;
-    
-    try {
-      await contract.methods.voteForProposal(voteNumber).send({from: accounts[0]});
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur est survenue lors du vote.', err);
-    }
+    event.persist(); // to avoid warning message = "This synthetic event is reused for performance reasons"
+    await contract.methods.voteForProposal(event.target.value).send({from: accounts[0]}).then(response => {
+      this.logify('Vote effectué pour la proposition numéro ' + event.target.value, response);
+    }).catch(error => {
+      this.alertAndLog('Une erreur est survenue lors du vote.', error);
+    });
   }
 
   countVotes = async() => {
     const { accounts, contract } = this.state;
     
-    try {
-      await contract.methods.countVotes().send({from: accounts[0]});
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur est survenue lors du décompte des votes.', err);
-    }
+    await contract.methods.countVotes().send({from: accounts[0]}).then(response => {
+      this.logify('Décompte des votes effectué.', response);
+    }).catch(error => {
+      this.alertAndLog('Une erreur est survenue lors du décompte des votes.', error);
+    });
   }
 
   resetVote = async() => {
     const { accounts, contract } = this.state;
-    
-    try {
-      await contract.methods.resetVote().send({from: accounts[0]});
-    }
-    catch (err) {
-      this.alertAndLog('Une erreur est survenue lors de la remise à zéro des votes.', err);
-    }
+
+    await contract.methods.resetVote().send({from: accounts[0]}).then(response => {
+      this.logify('Remise à zéro des votes effectuée.', response);
+      this.runInit();
+    }).catch(error => {
+      this.alertAndLog('Une erreur est survenue lors de la remise à zéro des votes.', error);
+    });
   }
 
   render() {
@@ -442,11 +462,6 @@ class App extends Component {
                                </Form.Group>
                                <Button onClick={ this.voteForProposal } variant="dark" >Voter pour un numéro de proposition</Button>
                              </>;
-      } else if (pageInformation.displayAlreadyVoted) {
-        divVoteForProposal = <>
-                               <br/>
-                               Vous avez déjà voté !
-                             </>;
       }
       
       divVoting = <>
@@ -487,6 +502,17 @@ class App extends Component {
       divResetVote = <div>
                        <Button onClick={ this.resetVote } variant="dark" >Reset complet</Button>
                      </div>;
+    }
+    
+    const tdVoteForProposal = (index) => {
+      if (pageInformation && pageInformation.displayVoteForProposal) {
+        return <>
+                 <Button onClick={ this.voteForProposal } value={index} variant="dark" >Voter</Button>&nbsp;
+               </>;
+      }
+      else {
+        return <></>;
+      }
     }
     
     return (
@@ -530,7 +556,7 @@ class App extends Component {
                         {contractInformation && typeof(contractInformation.proposals) !== 'undefined' && contractInformation.proposals !== null && 
                           contractInformation.proposals.map((proposalRecord, index) =>
                             <tr key={index}>
-                              <td>{index}</td>
+                              <td>{tdVoteForProposal(index)}{index}</td>
                               <td>{proposalRecord.description}</td>
                               <td>{proposalRecord.voteCount}</td>
                             </tr>)
